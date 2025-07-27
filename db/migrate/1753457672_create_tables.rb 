@@ -1,0 +1,76 @@
+# This migration creates the initial database schema for companies, jobs, and payments.
+# It uses raw SQL to create PostgreSQL-specific ENUM types, making it non-database-agnostic
+# but ensuring data integrity and performance.
+class CreateCorePaymentSchema < ActiveRecord::Migration[7.0]
+  def up
+    # Enable the pgcrypto extension to use gen_random_uuid() for UUID primary keys.
+    enable_extension 'pgcrypto'
+
+    # -- ENUM Types --
+    # We use execute to run raw SQL for creating custom PostgreSQL types.
+    # This is necessary because ActiveRecord does not have a native helper for ENUMs.
+    execute <<-SQL
+      CREATE TYPE job_status AS ENUM ('pending', 'success', 'failed');
+      CREATE TYPE currency AS ENUM ('AUD', 'USD', 'SGD', 'VND');
+      CREATE TYPE payment_status AS ENUM ('pending', 'exporting', 'exported');
+    SQL
+
+    # -- Tables --
+
+    # Create the 'companies' table
+    create_table :companies do |t|
+      t.string :name, limit: 255, null: false
+      t.boolean :active, null: false, default: true
+    end
+
+    # Add the partial unique index to ensure only one active company can have a given name.
+    add_index :companies, :name, unique: true, where: "active = true", name: 'one_active_company_name'
+
+    # Create the 'jobs' table
+    create_table :jobs do |t|
+      # Use t.column to specify the custom 'job_status' ENUM type.
+      t.column :status, :job_status, null: false, default: 'pending'
+      t.timestamp :executed_at
+      t.timestamp :updated_at
+      t.string :output
+    end
+
+    # Create the 'payments' table
+    # We specify `id: :uuid` to use UUIDs for the primary key.
+    create_table :payments, id: :uuid do |t|
+      # t.references creates the company_id column, a foreign key constraint, and an index.
+      t.references :company, type: :bigint, null: false, foreign_key: { on_delete: :restrict }
+
+      t.string :bsb, limit: 6, null: false
+      t.string :account, limit: 9, null: false
+
+      t.column :currency, :currency, null: false, default: 'AUD'
+      t.date :pay_date, null: false
+      t.column :status, :payment_status, null: false, default: 'pending'
+
+      # We define timestamps manually to match the original schema exactly.
+      t.timestamp :created_at, null: false, default: -> { 'now()' }
+      t.timestamp :updated_at
+
+      # This job reference is nullable and will be set to NULL if the parent job is deleted.
+      t.references :job, type: :bigint, null: true, foreign_key: { on_delete: :set_null }
+    end
+  end
+
+  def down
+    # To reverse the migration, we drop objects in the reverse order of creation.
+    drop_table :payments
+    drop_table :jobs
+    drop_table :companies
+
+    # Drop the custom ENUM types using raw SQL.
+    execute <<-SQL
+      DROP TYPE payment_status;
+      DROP TYPE currency;
+      DROP TYPE job_status;
+    SQL
+
+    # Disable the extension on rollback.
+    disable_extension 'pgcrypto'
+  end
+end

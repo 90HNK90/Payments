@@ -1,0 +1,68 @@
+# docker-compose.yml
+version: '3.8'
+services:
+  # app:
+  #   build: .
+  #   command: bundle exec puma -p 4567
+  #   ports: ["4567:4567"]
+  #   volumes: [".:/usr/src/app"]
+  #   environment:
+  #     - DATABASE_URL=postgres://user:password@db:5432/payments_dev
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     db: { condition: service_healthy }
+  #     redis: { condition: service_healthy }
+  # worker:
+  #   build: .
+  #   command: bundle exec sidekiq -r ./app.rb
+  #   volumes: [".:/usr/src/app"]
+  #   environment:
+  #     - DATABASE_URL=postgres://user:password@db:5432/payments_dev
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     db: { condition: service_healthy }
+  #     redis: { condition: service_healthy }
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: payments_dev
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d payments_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000" # API port
+      - "9001:9001" # Console port
+    volumes:
+      - ./minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+
+  sftp:
+    image: atmoz/sftp
+    volumes:
+      - ./sftp_data:/home/testuser
+    ports:
+      - "2222:22"
+    # This command now explicitly creates the 'upload' directory inside the
+    # user's home directory on startup, ensuring correct permissions.
+    command: testuser:password:1001::upload
+volumes:
+  postgres_data:
