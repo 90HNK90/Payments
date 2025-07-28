@@ -11,6 +11,16 @@ This is a backend service for a payroll company. The system is designed to accep
 
     Ruby, SideKiq, Redis, Postgresql, AWS S3, SFTP
 
+### Local Setup
+
+run `docker compose up -d`
+
+execute migration `bundle exec rake db:migrate`
+
+start server `bundle exec puma -p 4567`
+
+start sidekiq worker `bundle exec sidekiq -r ./app.rb`
+
 ### **Entities**
 ```mermaid
     erDiagram
