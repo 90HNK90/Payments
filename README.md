@@ -21,6 +21,8 @@ start server `bundle exec puma -p 4567`
 
 start sidekiq worker `bundle exec sidekiq -r ./app.rb`
 
+to execute Unit test case `bundle exec rspec`
+
 ### **Entities**
 ```mermaid
     erDiagram
