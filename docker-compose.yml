@@ -61,8 +61,6 @@ services:
       - ./sftp_data:/home/testuser
     ports:
       - "2222:22"
-    # This command now explicitly creates the 'upload' directory inside the
-    # user's home directory on startup, ensuring correct permissions.
     command: testuser:password:1001::upload
 volumes:
   postgres_data:

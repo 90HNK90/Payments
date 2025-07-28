@@ -3,6 +3,7 @@ require 'logger'
 require 'fileutils'
 require 'aws-sdk-s3'
 require_relative 'sftp_streamer'
+require 'securerandom'
 
 class PaymentExporter
   include Sidekiq::Job
@@ -13,16 +14,31 @@ class PaymentExporter
     export_dir = File.join(Dir.pwd, 'tmp', 'exports')
     FileUtils.mkdir_p(export_dir)
 
+    config = Configuration.find_by(name: 'file_path', active: true)
+    s3_key_template =
+      if config
+        config.value
+      else
+        logger.warn "No active S3 configuration found. Using default key template."
+        'payments/payments_{timestamp}.txt' # Default template
+      end
+
     timestamp = Time.now.strftime('%Y%m%d%H%M%S')
-    local_file_path = File.join(export_dir, "payments_#{timestamp}.txt")
-    s3_object_key = "payments/payments_#{timestamp}.txt"
+
+    # --- CHANGE START ---
+    # Generate S3 key from the template
+    s3_object_key = s3_key_template.gsub('{timestamp}', timestamp)
+
+    # Generate local file path from the S3 key's base name
+    local_file_name = File.basename(s3_object_key)
+    local_file_path = File.join(export_dir, local_file_name)
 
     total_payments_processed = 0
     job_record = nil
 
     begin
       ActiveRecord::Base.transaction do
-        job_record = Job.create!(status: 'pending', executed_at: Time.now)
+        job_record = Job.create!(id: SecureRandom.uuid, status: 'pending', executed_at: Time.now)
 
         CSV.open(local_file_path, 'wb', col_sep: ', ') do |csv|
           csv << ['COMPANY_ID', 'EMPLOYEE_ID', 'BSB', 'ACCOUNT', 'AMOUNT_CENTS', 'CURRENCY', 'PAY_DATE']

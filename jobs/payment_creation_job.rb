@@ -26,7 +26,8 @@ class PaymentCreationJob
           attrs['created_at'] ||= timestamp
           attrs['updated_at'] ||= timestamp
         end
-        Payment.insert_all(batch)
+        logger.info "insert batch size: #{batch.size}"
+        Payment.insert_all!(batch)
       end
     end
 
@@ -34,7 +35,6 @@ class PaymentCreationJob
 
     if callback_url.present?
       logger.info "Sending asynchronous webhook notification for batch_id: #{batch_id} to #{callback_url}"
-      // TODO
     end
   rescue => e
     logger.error "Transaction failed for batch_id: #{batch_id}. All inserts have been rolled back. Reason: #{e.message}"
