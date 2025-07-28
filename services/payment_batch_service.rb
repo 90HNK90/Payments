@@ -37,13 +37,12 @@ class PaymentBatchService
       }
     end
 
-    # Create a richer payload for the background job
     job_payload = {
       "company_id"           => company_id,
       "batch_id"             => batch_id,
       "callback_url"         => callback_url,
       "transformed_payments" => transformed_payments,
-      "original_payments"    => payments_data # Pass the original payments array
+      "original_payments"    => payments_data
     }
     PaymentCreationJob.perform_async(job_payload)
     puts "[API] Enqueued job for #{transformed_payments.size} payments for company #{company_id}."

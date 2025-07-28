@@ -8,7 +8,6 @@ class PaymentCreationJob
   INSERT_BATCH_SIZE = 1000
 
   def perform(payload)
-    # Unpack the richer payload
     transformed_payments = payload['transformed_payments']
     callback_url = payload['callback_url']
     batch_id = payload['batch_id']
@@ -33,7 +32,6 @@ class PaymentCreationJob
 
     logger.info "Successfully inserted #{total_payments} payments for batch_id: #{batch_id}."
 
-    # After successful insertion, check for a callback_url.
     if callback_url.present?
       logger.info "Sending asynchronous webhook notification for batch_id: #{batch_id} to #{callback_url}"
       // TODO

@@ -5,7 +5,7 @@ require 'aws-sdk-s3'
 require_relative 'sftp_streamer'
 
 class PaymentExporter
-  include Sidekiq::Job # Changed to use the modern Sidekiq::Job syntax
+  include Sidekiq::Job
   sidekiq_options retry: true, unique: :until_executed
 
   def perform
@@ -15,14 +15,12 @@ class PaymentExporter
 
     timestamp = Time.now.strftime('%Y%m%d%H%M%S')
     local_file_path = File.join(export_dir, "payments_#{timestamp}.txt")
-    s3_object_key = "payments/payments_#{timestamp}.txt" # Path within the S3 bucket
+    s3_object_key = "payments/payments_#{timestamp}.txt"
 
     total_payments_processed = 0
-    job_record = nil # Renamed from 'job' to avoid conflict
+    job_record = nil
 
     begin
-      # The entire process, including file generation, S3 upload, and job queuing,
-      # is wrapped in a single database transaction for atomicity.
       ActiveRecord::Base.transaction do
         job_record = Job.create!(status: 'pending', executed_at: Time.now)
 
@@ -44,36 +42,20 @@ class PaymentExporter
         end
 
         if total_payments_processed > 0
-          # --- Operations now inside the transaction ---
-          # WARNING: Placing network calls (like S3 uploads) inside a database
-          # transaction can hold database locks for an extended period, which may
-          # impact performance. This approach prioritizes atomicity over minimizing
-          # transaction time.
-
-          # 1. Upload the generated file to our local S3 (MinIO)
           upload_to_s3(local_file_path, s3_object_key, logger)
 
-          # 2. Enqueue the SFTP streamer job directly.
           SftpStreamer.perform_async(s3_object_key)
 
           logger.info "Enqueued SFTP transfer for #{s3_object_key}"
-          # The status remains 'pending'. The SftpStreamer is now responsible for the final status update.
           job_record.update!(status: 'success', output: s3_object_key)
         else
           job_record.update!(status: 'success')
         end
-      end # The transaction commits here ONLY if all steps inside were successful.
-
+      end
     rescue StandardError => e
-      # If an error occurred anywhere inside the transaction (DB, S3 upload, etc.),
-      # the entire transaction is automatically rolled back. This means the Job
-      # record is deleted and Payment statuses are reverted.
       job_record&.update(status: 'failed', output: e.message)
       logger.error "Payment export transaction failed and was rolled back: #{e.message}"
-      raise e # Re-raise for Sidekiq's retry mechanism.
     ensure
-      # Clean up the local file regardless of success or failure,
-      # as it has either been uploaded or the process failed.
       FileUtils.rm_f(local_file_path)
     end
   end

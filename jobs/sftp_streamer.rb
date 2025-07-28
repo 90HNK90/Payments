@@ -15,20 +15,16 @@ class SftpStreamer
 
     logger.info "Starting SFTP stream for #{s3_object_key}"
 
-    # Connect to SFTP and S3
     Net::SFTP.start('localhost', 'testuser', password: 'password', port: 2222) do |sftp|
       logger.info "Connected to SFTP server."
       
-      # The docker-compose file now handles creating the 'upload' directory
-      # with the correct permissions on server startup. This code now assumes
-      # that directory exists and uploads the file directly to it.
       sftp.upload!(s3_stream(s3_object_key, logger), remote_path)
       
       logger.info "Successfully streamed #{sftp_filename} to SFTP server at #{remote_path}"
     end
   rescue StandardError => e
     logger.error "SFTP stream failed for #{s3_object_key}: #{e.message}"
-    raise e # Re-raise to allow for Sidekiq retries
+    raise e
   end
 
   private
@@ -43,7 +39,6 @@ class SftpStreamer
     )
   end
 
-  # This method returns an IO-like object that streams the S3 object's content
   def s3_stream(object_key, logger)
     bucket_name = 'payment-exports'
     string_io = StringIO.new
