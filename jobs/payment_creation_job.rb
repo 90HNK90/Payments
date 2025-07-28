@@ -1,6 +1,7 @@
 # jobs/payment_creation_job.rb
 require 'sidekiq'
 require 'securerandom'
+require 'logger'
 
 class PaymentCreationJob
   include Sidekiq::Job
@@ -14,8 +15,8 @@ class PaymentCreationJob
     company_id = payload['company_id']
     original_payments = payload['original_payments']
     total_payments = transformed_payments.size
-
-    puts "[Sidekiq Worker] Starting to process a batch of #{total_payments} payments for batch_id: #{batch_id}."
+    logger = Logger.new(STDOUT)
+    logger.info "Starting to process a batch of #{total_payments} payments for batch_id: #{batch_id}."
     timestamp = Time.now
 
     ActiveRecord::Base.transaction do
@@ -30,25 +31,15 @@ class PaymentCreationJob
       end
     end
 
-    puts "[Sidekiq Worker] Successfully inserted #{total_payments} payments for batch_id: #{batch_id}."
+    logger.info "Successfully inserted #{total_payments} payments for batch_id: #{batch_id}."
 
     # After successful insertion, check for a callback_url.
     if callback_url.present?
-      puts "[Sidekiq Worker] Enqueuing webhook notification for batch_id: #{batch_id} to #{callback_url}"
-      
-      # Construct the notification payload to match the requested format.
-      notification_payload = {
-        company_id: company_id,
-        batch_id: batch_id,
-        payments: original_payments
-      }
-      
-      # Enqueue the separate job to handle the HTTP call.
-      WebhookNotificationJob.perform_async(callback_url, notification_payload)
+      logger.info "Sending asynchronous webhook notification for batch_id: #{batch_id} to #{callback_url}"
+      // TODO
     end
-
   rescue => e
-    puts "[Sidekiq Worker] ERROR: Transaction failed for batch_id: #{batch_id}. All inserts have been rolled back. Reason: #{e.message}"
+    logger.error "Transaction failed for batch_id: #{batch_id}. All inserts have been rolled back. Reason: #{e.message}"
     raise e
   end
 end

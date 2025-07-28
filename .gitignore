@@ -1,0 +1,30 @@
+# .gitignore
+
+# Ignore sensitive or large data directories
+# These folders might contain downloaded data or credentials.
+minio_data/
+sftp_data/
+
+# Ignore temporary files and exports
+# This directory is used for temporary files that shouldn't be in version control.
+tmp/exports/
+
+# Standard Rails/Ruby ignores
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# Ignore local environment files
+.env
+
+# Ignore bundler configuration
+.bundle/
+
+# Ignore database files
+/db/*.sqlite3
+/db/*.sqlite3-journal
+
+# Ignore uploaded files
+/storage/*
+!/storage/.keep

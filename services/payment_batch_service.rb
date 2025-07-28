@@ -11,6 +11,7 @@ class PaymentBatchService
     logger.info "Trigger PaymentExporter manually"
     PaymentExporter.perform_async()
   end  
+  
   def self.create(request_params)
     company_id = request_params['company_id']
     validator_class = ::Validators::Registry.for(company_id)
