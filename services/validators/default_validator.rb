@@ -5,12 +5,12 @@ module Validators
   class DefaultValidator < BaseValidator
     def validate
       company_id = params['company_id']
-      batch_id = params['company_id']
+      batch_id = params['batch_id']
       payments = params['payments']
 
       validate_company(company_id)
 
-      if batch_id.blank?
+      if batch_id.nil? || batch_id.strip.empty?
         @errors << 'Request must include a batch_id.'
       end
 
@@ -28,7 +28,7 @@ module Validators
     private
 
     def validate_company(company_id)
-      if company_id.blank?
+      if company_id.nil? || company_id.strip.empty?
         @errors << 'Request must include a company_id.'
         return
       end
@@ -59,7 +59,7 @@ module Validators
     end
 
     def validate_pay_date(date_str, index)
-      if date_str.blank?
+      if date_str.nil? || date_str.strip.empty?
         @errors << "Payment ##{index}: pay_date is missing."
         return
       end

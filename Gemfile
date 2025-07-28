@@ -16,3 +16,5 @@ gem 'aws-sdk-s3'
 gem 'net-sftp'
 gem 'csv'
 gem 'nokogiri'
+gem "rspec", "~> 3.12"
+gem 'standalone_migrations'

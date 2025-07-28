@@ -1,5 +1,5 @@
 export_payments_job:
-  cron: "0 17 * * *" # Runs at 5:00 PM UTC every day
+  cron: "0 17 * * *"
   class: "PaymentExporter"
   queue: "default"
   description: "Daily job to export salary payments for the bank."

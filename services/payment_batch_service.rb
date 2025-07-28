@@ -5,9 +5,11 @@ require_relative 'validators/default_validator'
 require_relative 'validators/company_with_reference_validator'
 
 class PaymentBatchService
-
+  def self.logger
+    @logger ||= Logger.new(STDOUT)
+  end
+  
   def self.trigger()
-    logger = Logger.new(STDOUT)
     logger.info "Trigger PaymentExporter manually"
     PaymentExporter.perform_async()
   end  
@@ -45,8 +47,8 @@ class PaymentBatchService
       "original_payments"    => payments_data
     }
     PaymentCreationJob.perform_async(job_payload)
-    puts "[API] Enqueued job for #{transformed_payments.size} payments for company #{company_id}."
+    logger.info "[API] Enqueued job for #{transformed_payments.size} payments for company #{company_id}."
 
-    { success: true, status: 202, message: "Accepted: A batch of #{transformed_payments.size} payments has been enqueued for processing." }
+    { success: true, status: 201, message: "Accepted: A batch of #{transformed_payments.size} payments has been enqueued for processing." }
   end
 end
